@@ -1,36 +1,63 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
-// Проверяем, что мы в браузере
-const isBrowser = typeof window !== 'undefined';
+let supabaseInstance: SupabaseClient | null = null;
 
-// Создаём клиент
-export const supabase = createClient(
-  supabaseUrl || 'https://placeholder.supabase.co',
-  supabaseAnonKey || 'placeholder-key',
-  {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true,
-      flowType: 'pkce',
-      storage: isBrowser ? window.localStorage : undefined,
-      storageKey: 'kuztube-auth',
-    },
-    realtime: {
-      params: {
-        eventsPerSecond: 2,
-      },
-    },
-    global: {
-      headers: {
-        'x-client-info': 'kuztube-web',
-      },
-    },
+function getSupabaseClient(): SupabaseClient {
+  if (supabaseInstance) {
+    return supabaseInstance;
   }
-);
+
+  const isBrowser = typeof window !== 'undefined';
+  
+  supabaseInstance = createClient(
+    supabaseUrl || 'https://placeholder.supabase.co',
+    supabaseAnonKey || 'placeholder-key',
+    {
+      auth: {
+        persistSession: isBrowser,
+        autoRefreshToken: true,
+        detectSessionInUrl: isBrowser,
+        storage: isBrowser ? {
+          getItem: (key) => {
+            try {
+              return window.localStorage.getItem(key);
+            } catch {
+              return null;
+            }
+          },
+          setItem: (key, value) => {
+            try {
+              window.localStorage.setItem(key, value);
+            } catch {
+              // ignore
+            }
+          },
+          removeItem: (key) => {
+            try {
+              window.localStorage.removeItem(key);
+            } catch {
+              // ignore
+            }
+          },
+        } : undefined,
+        storageKey: 'sb-kuztube-auth-token',
+      },
+      realtime: {
+        params: {
+          eventsPerSecond: 2,
+        },
+      },
+    }
+  );
+
+  return supabaseInstance;
+}
+
+// Экспортируем как getter для ленивой инициализации
+export const supabase = getSupabaseClient();
 
 // Типы для базы данных
 export interface Video {

@@ -130,3 +130,8 @@ CREATE POLICY "Users can delete own messages" ON chat_messages
 
 -- Индекс для быстрой выборки последних сообщений
 CREATE INDEX IF NOT EXISTS chat_messages_created_at_idx ON chat_messages(created_at DESC);
+
+
+-- Включаем Realtime для таблицы chat_messages
+-- Выполните эту команду в Supabase SQL Editor:
+ALTER PUBLICATION supabase_realtime ADD TABLE chat_messages;

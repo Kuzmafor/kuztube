@@ -43,46 +43,61 @@ export function AuthProvider({ children }: AuthProviderProps) {
   useEffect(() => {
     let mounted = true;
 
-    // Сначала подписываемся на изменения авторизации
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('Auth state change:', event, session?.user?.email);
-        
-        if (!mounted) return;
-        
-        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
-          if (session?.user) {
-            await setUserFromSession(session);
+    // Функция для установки пользователя из сессии
+    const handleSession = async (session: Session | null) => {
+      if (!mounted) return;
+      
+      if (session?.user) {
+        try {
+          const { data: profile } = await supabase
+            .from('users')
+            .select('display_name, avatar')
+            .eq('id', session.user.id)
+            .single();
+
+          if (mounted) {
+            setUser({
+              uid: session.user.id,
+              email: session.user.email || null,
+              displayName: profile?.display_name || session.user.user_metadata?.display_name || null,
+              avatar: profile?.avatar || null,
+            });
           }
-        } else if (event === 'SIGNED_OUT') {
+        } catch (err) {
+          console.error('Error fetching profile:', err);
+          if (mounted) {
+            setUser({
+              uid: session.user.id,
+              email: session.user.email || null,
+              displayName: session.user.user_metadata?.display_name || null,
+              avatar: null,
+            });
+          }
+        }
+      } else {
+        if (mounted) {
           setUser(null);
         }
-        setLoading(false);
       }
-    );
-
-    // Затем проверяем текущую сессию
-    const initAuth = async () => {
-      try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        console.log('Init auth - session:', session?.user?.email, 'error:', error);
-        
-        if (mounted && session?.user) {
-          await setUserFromSession(session);
-        }
-        if (mounted) {
-          setLoading(false);
-        }
-      } catch (error) {
-        console.error('Auth init error:', error);
-        if (mounted) {
-          setLoading(false);
-        }
+      
+      if (mounted) {
+        setLoading(false);
       }
     };
 
-    initAuth();
+    // Подписываемся на изменения авторизации
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('Auth event:', event);
+        await handleSession(session);
+      }
+    );
+
+    // Проверяем текущую сессию при загрузке
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      console.log('Initial session check:', session?.user?.email, error);
+      handleSession(session);
+    });
 
     return () => {
       mounted = false;
@@ -90,28 +105,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
     };
   }, []);
 
-  const setUserFromSession = async (session: Session) => {
-    const { user: supaUser } = session;
-    
-    // Получаем профиль пользователя
-    const { data: profile } = await supabase
-      .from('users')
-      .select('display_name, avatar')
-      .eq('id', supaUser.id)
-      .single();
-
-    setUser({
-      uid: supaUser.id,
-      email: supaUser.email || null,
-      displayName: profile?.display_name || supaUser.user_metadata?.display_name || null,
-      avatar: profile?.avatar || null,
-    });
-  };
-
   const refreshUser = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (session?.user) {
-      await setUserFromSession(session);
+      const { data: profile } = await supabase
+        .from('users')
+        .select('display_name, avatar')
+        .eq('id', session.user.id)
+        .single();
+
+      setUser({
+        uid: session.user.id,
+        email: session.user.email || null,
+        displayName: profile?.display_name || session.user.user_metadata?.display_name || null,
+        avatar: profile?.avatar || null,
+      });
     }
   };
 

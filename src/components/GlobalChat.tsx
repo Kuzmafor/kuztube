@@ -35,13 +35,31 @@ export default function GlobalChat() {
   useEffect(() => {
     fetchMessages();
     
-    // Подписка на новые сообщения
+    // Подписка на новые сообщения через Realtime
     const channel = supabase
-      .channel('chat_messages')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, (payload) => {
-        setMessages(prev => [...prev, payload.new as ChatMessage]);
-      })
-      .subscribe();
+      .channel('global-chat-room')
+      .on(
+        'postgres_changes',
+        { 
+          event: 'INSERT', 
+          schema: 'public', 
+          table: 'chat_messages' 
+        },
+        (payload) => {
+          console.log('New message received:', payload);
+          const newMsg = payload.new as ChatMessage;
+          setMessages(prev => {
+            // Проверяем, нет ли уже такого сообщения (избегаем дубликатов)
+            if (prev.some(m => m.id === newMsg.id)) {
+              return prev;
+            }
+            return [...prev, newMsg];
+          });
+        }
+      )
+      .subscribe((status) => {
+        console.log('Chat subscription status:', status);
+      });
 
     // Симуляция онлайн счётчика
     const interval = setInterval(() => {
@@ -49,6 +67,7 @@ export default function GlobalChat() {
     }, 30000);
 
     return () => {
+      console.log('Unsubscribing from chat');
       supabase.removeChannel(channel);
       clearInterval(interval);
     };
@@ -73,18 +92,44 @@ export default function GlobalChat() {
     e.preventDefault();
     if (!user || !newMessage.trim() || loading) return;
 
+    const messageText = newMessage.trim();
     setLoading(true);
+    setNewMessage(''); // Очищаем сразу для лучшего UX
     
-    const { error } = await supabase.from('chat_messages').insert({
+    // Оптимистичное добавление сообщения
+    const tempId = `temp-${Date.now()}`;
+    const optimisticMessage: ChatMessage = {
+      id: tempId,
       user_id: user.uid,
       user_name: user.displayName || 'Аноним',
       user_avatar: user.avatar || '',
-      message: newMessage.trim()
-    });
+      message: messageText,
+      created_at: new Date().toISOString()
+    };
+    
+    setMessages(prev => [...prev, optimisticMessage]);
+    
+    const { data, error } = await supabase
+      .from('chat_messages')
+      .insert({
+        user_id: user.uid,
+        user_name: user.displayName || 'Аноним',
+        user_avatar: user.avatar || '',
+        message: messageText
+      })
+      .select()
+      .single();
 
-    if (!error) {
-      setNewMessage('');
+    if (error) {
+      console.error('Error sending message:', error);
+      // Удаляем оптимистичное сообщение при ошибке
+      setMessages(prev => prev.filter(m => m.id !== tempId));
+      setNewMessage(messageText); // Возвращаем текст
+    } else if (data) {
+      // Заменяем временное сообщение на реальное
+      setMessages(prev => prev.map(m => m.id === tempId ? data : m));
     }
+    
     setLoading(false);
   };
 
