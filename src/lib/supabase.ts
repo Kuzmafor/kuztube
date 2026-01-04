@@ -12,6 +12,17 @@ export const supabase = createClient(
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: true,
+      flowType: 'pkce',
+    },
+    realtime: {
+      params: {
+        eventsPerSecond: 2,
+      },
+    },
+    global: {
+      headers: {
+        'x-client-info': 'kuztube-web',
+      },
     },
   }
 );

@@ -33,34 +33,48 @@ export default function LoginPage() {
     }
 
     setLoading(true);
+    
+    // Таймаут для логина (15 секунд)
+    const loginTimeout = setTimeout(() => {
+      setLoading(false);
+      setError('Превышено время ожидания. Попробуйте ещё раз.');
+    }, 15000);
+    
     try {
       await login(email, password);
+      clearTimeout(loginTimeout);
       
-      // Получаем сессию для проверки бана
-      const { supabase } = await import('@/lib/supabase');
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session?.user) {
-        const banCheck = isUserBanned(session.user.id);
-        if (banCheck.banned && banCheck.info) {
-          setBanMessage({
-            reason: banCheck.info.reason,
-            timeLeft: formatBanTimeLeft(banCheck.info.expiresAt)
-          });
-          // Выходим из аккаунта, так как пользователь забанен
-          await supabase.auth.signOut();
-          setLoading(false);
-          return;
+      // Проверка бана
+      try {
+        const { supabase } = await import('@/lib/supabase');
+        const { data: { user: currentUser } } = await supabase.auth.getUser();
+        
+        if (currentUser) {
+          const banCheck = isUserBanned(currentUser.id);
+          if (banCheck.banned && banCheck.info) {
+            setBanMessage({
+              reason: banCheck.info.reason,
+              timeLeft: formatBanTimeLeft(banCheck.info.expiresAt)
+            });
+            await supabase.auth.signOut();
+            setLoading(false);
+            return;
+          }
         }
+      } catch {
+        // Игнорируем ошибку проверки бана, продолжаем вход
       }
       
       router.push('/');
     } catch (err: unknown) {
+      clearTimeout(loginTimeout);
       if (err instanceof Error) {
         if (err.message.includes('user-not-found')) {
           setError('Пользователь не найден');
         } else if (err.message.includes('wrong-password') || err.message.includes('invalid-credential')) {
           setError('Неверный пароль');
+        } else if (err.message.includes('Invalid API key')) {
+          setError('Ошибка конфигурации сервера. Обратитесь к администратору.');
         } else {
           setError('Ошибка входа. Проверьте данные');
         }
