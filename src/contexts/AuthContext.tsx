@@ -43,17 +43,35 @@ export function AuthProvider({ children }: AuthProviderProps) {
   useEffect(() => {
     let mounted = true;
 
+    // Сначала подписываемся на изменения авторизации
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('Auth state change:', event, session?.user?.email);
+        
+        if (!mounted) return;
+        
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
+          if (session?.user) {
+            await setUserFromSession(session);
+          }
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null);
+        }
+        setLoading(false);
+      }
+    );
+
+    // Затем проверяем текущую сессию
     const initAuth = async () => {
       try {
-        // Получаем текущую сессию
         const { data: { session }, error } = await supabase.auth.getSession();
         
         console.log('Init auth - session:', session?.user?.email, 'error:', error);
         
+        if (mounted && session?.user) {
+          await setUserFromSession(session);
+        }
         if (mounted) {
-          if (session?.user) {
-            await setUserFromSession(session);
-          }
           setLoading(false);
         }
       } catch (error) {
@@ -65,22 +83,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     };
 
     initAuth();
-
-    // Слушаем изменения авторизации
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('Auth state change:', event, session?.user?.email);
-        
-        if (!mounted) return;
-        
-        if (session?.user) {
-          await setUserFromSession(session);
-        } else {
-          setUser(null);
-        }
-        setLoading(false);
-      }
-    );
 
     return () => {
       mounted = false;

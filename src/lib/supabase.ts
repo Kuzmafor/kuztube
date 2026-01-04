@@ -3,7 +3,10 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
-// Создаём клиент только если есть credentials
+// Проверяем, что мы в браузере
+const isBrowser = typeof window !== 'undefined';
+
+// Создаём клиент
 export const supabase = createClient(
   supabaseUrl || 'https://placeholder.supabase.co',
   supabaseAnonKey || 'placeholder-key',
@@ -13,6 +16,8 @@ export const supabase = createClient(
       autoRefreshToken: true,
       detectSessionInUrl: true,
       flowType: 'pkce',
+      storage: isBrowser ? window.localStorage : undefined,
+      storageKey: 'kuztube-auth',
     },
     realtime: {
       params: {
