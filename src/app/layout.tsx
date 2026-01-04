@@ -7,6 +7,7 @@ import Header from "@/components/Header";
 import WinterEffects from "@/components/WinterEffects";
 import Sidebar from "@/components/Sidebar";
 import AchievementPopup from "@/components/AchievementPopup";
+import GlobalChat from "@/components/GlobalChat";
 import { useGamification } from "@/lib/useGamification";
 import { useTheme } from "@/lib/useTheme";
 
@@ -74,6 +75,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
         {children}
       </main>
       <AchievementPopup achievement={newAchievement} />
+      <GlobalChat />
     </>
   );
 }

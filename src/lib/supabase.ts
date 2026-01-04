@@ -3,6 +3,18 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 let supabaseInstance: SupabaseClient | null = null;
 
 function getSupabaseClient(): SupabaseClient {
+  // На сервере во время билда возвращаем placeholder
+  if (typeof window === 'undefined') {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    
+    if (!supabaseUrl || !supabaseAnonKey) {
+      return createClient('https://placeholder.supabase.co', 'placeholder-key');
+    }
+    return createClient(supabaseUrl, supabaseAnonKey);
+  }
+
+  // На клиенте используем singleton с реальными credentials
   if (supabaseInstance) {
     return supabaseInstance;
   }
@@ -11,18 +23,32 @@ function getSupabaseClient(): SupabaseClient {
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseAnonKey) {
-    // Возвращаем mock клиент для билда
-    if (typeof window === 'undefined') {
-      return createClient('https://placeholder.supabase.co', 'placeholder-key');
-    }
     throw new Error('Supabase credentials not found');
   }
 
-  supabaseInstance = createClient(supabaseUrl, supabaseAnonKey);
+  supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      persistSession: true,
+      storageKey: 'kuztube-auth',
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+    },
+  });
+  
   return supabaseInstance;
 }
 
-export const supabase = getSupabaseClient();
+// Используем getter для ленивой инициализации на клиенте
+export const supabase = new Proxy({} as SupabaseClient, {
+  get(_, prop) {
+    const client = getSupabaseClient();
+    const value = (client as Record<string | symbol, unknown>)[prop];
+    if (typeof value === 'function') {
+      return value.bind(client);
+    }
+    return value;
+  },
+});
 
 // Типы для базы данных
 export interface Video {

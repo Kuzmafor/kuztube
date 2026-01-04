@@ -37,8 +37,14 @@ export default function VideoCard({
   const [isHovered, setIsHovered] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showAnalytics, setShowAnalytics] = useState(false);
+  const [showPromote, setShowPromote] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [avatar, setAvatar] = useState(authorAvatar || '');
+  const [videoStats, setVideoStats] = useState<any>(null);
+  const [editData, setEditData] = useState({ title: '', description: '', thumbnail: '' });
   const menuRef = useRef<HTMLDivElement>(null);
 
   const isOwner = user?.uid === authorId;
@@ -129,6 +135,81 @@ export default function VideoCard({
   const handleReport = () => {
     alert('Жалоба отправлена. Спасибо за обратную связь!');
     setShowMenu(false);
+  };
+
+  // Загрузка статистики видео
+  const loadVideoStats = async () => {
+    const { data: video } = await supabase
+      .from('videos')
+      .select('*')
+      .eq('id', id)
+      .single();
+    
+    const { count: commentsCount } = await supabase
+      .from('comments')
+      .select('*', { count: 'exact', head: true })
+      .eq('video_id', id);
+
+    if (video) {
+      setVideoStats({
+        views: video.views || 0,
+        likes: video.likes || 0,
+        dislikes: video.dislikes || 0,
+        comments: commentsCount || 0,
+        created_at: video.created_at
+      });
+    }
+    setShowAnalytics(true);
+    setShowMenu(false);
+  };
+
+  // Загрузка данных для редактирования
+  const loadEditData = async () => {
+    const { data: video } = await supabase
+      .from('videos')
+      .select('title, description, thumbnail')
+      .eq('id', id)
+      .single();
+    
+    if (video) {
+      setEditData({
+        title: video.title || '',
+        description: video.description || '',
+        thumbnail: video.thumbnail || ''
+      });
+    }
+    setShowEdit(true);
+    setShowMenu(false);
+  };
+
+  // Сохранение изменений
+  const handleSaveEdit = async () => {
+    if (!editData.title.trim()) {
+      alert('Название не может быть пустым');
+      return;
+    }
+    
+    setIsSaving(true);
+    try {
+      const { error } = await supabase
+        .from('videos')
+        .update({
+          title: editData.title.trim(),
+          description: editData.description.trim(),
+          thumbnail: editData.thumbnail.trim()
+        })
+        .eq('id', id);
+      
+      if (error) throw error;
+      
+      setShowEdit(false);
+      window.location.reload();
+    } catch (err) {
+      console.error('Error updating video:', err);
+      alert('Ошибка при сохранении');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -258,7 +339,7 @@ export default function VideoCard({
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      window.location.href = `/upload?edit=${id}`;
+                      loadEditData();
                     }}
                     className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white hover:bg-gray-700 transition-colors"
                   >
@@ -272,7 +353,7 @@ export default function VideoCard({
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      alert('Функция рекламы скоро будет доступна!');
+                      setShowPromote(true);
                       setShowMenu(false);
                     }}
                     className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white hover:bg-gray-700 transition-colors"
@@ -288,8 +369,7 @@ export default function VideoCard({
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      alert('Аналитика скоро будет доступна!');
-                      setShowMenu(false);
+                      loadVideoStats();
                     }}
                     className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-white hover:bg-gray-700 transition-colors"
                   >
@@ -440,6 +520,246 @@ export default function VideoCard({
                 className="px-5 py-2.5 rounded-full bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50"
               >
                 {isDeleting ? 'Удаление...' : 'Удалить'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Analytics Modal */}
+      {showAnalytics && videoStats && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80"
+          onClick={() => setShowAnalytics(false)}
+        >
+          <div 
+            className="w-full max-w-lg bg-gray-800 rounded-2xl p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                <span>📊</span> Аналитика видео
+              </h3>
+              <button onClick={() => setShowAnalytics(false)} className="text-gray-400 hover:text-white">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="mb-4 p-3 rounded-xl bg-gray-700/50">
+              <p className="text-sm text-gray-400 truncate">{title}</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              <div className="p-4 rounded-xl bg-gradient-to-br from-blue-500/20 to-blue-600/10 border border-blue-500/30">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-2xl">👁️</span>
+                  <span className="text-sm text-gray-400">Просмотры</span>
+                </div>
+                <p className="text-3xl font-bold text-blue-400">{videoStats.views.toLocaleString()}</p>
+              </div>
+              
+              <div className="p-4 rounded-xl bg-gradient-to-br from-green-500/20 to-green-600/10 border border-green-500/30">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-2xl">👍</span>
+                  <span className="text-sm text-gray-400">Лайки</span>
+                </div>
+                <p className="text-3xl font-bold text-green-400">{videoStats.likes.toLocaleString()}</p>
+              </div>
+              
+              <div className="p-4 rounded-xl bg-gradient-to-br from-red-500/20 to-red-600/10 border border-red-500/30">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-2xl">👎</span>
+                  <span className="text-sm text-gray-400">Дизлайки</span>
+                </div>
+                <p className="text-3xl font-bold text-red-400">{videoStats.dislikes.toLocaleString()}</p>
+              </div>
+              
+              <div className="p-4 rounded-xl bg-gradient-to-br from-purple-500/20 to-purple-600/10 border border-purple-500/30">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-2xl">💬</span>
+                  <span className="text-sm text-gray-400">Комментарии</span>
+                </div>
+                <p className="text-3xl font-bold text-purple-400">{videoStats.comments.toLocaleString()}</p>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-xl bg-gray-700/30 mb-4">
+              <p className="text-sm text-gray-400 mb-1">Рейтинг вовлечённости</p>
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-3 bg-gray-700 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-gradient-to-r from-green-500 to-green-400 rounded-full"
+                    style={{ width: `${videoStats.views > 0 ? Math.min(((videoStats.likes + videoStats.comments) / videoStats.views) * 100, 100) : 0}%` }}
+                  />
+                </div>
+                <span className="text-sm font-medium text-green-400">
+                  {videoStats.views > 0 ? (((videoStats.likes + videoStats.comments) / videoStats.views) * 100).toFixed(1) : 0}%
+                </span>
+              </div>
+            </div>
+
+            <p className="text-xs text-gray-500 text-center">
+              Опубликовано: {new Date(videoStats.created_at).toLocaleDateString('ru-RU')}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Promote Modal */}
+      {showPromote && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80"
+          onClick={() => setShowPromote(false)}
+        >
+          <div 
+            className="w-full max-w-lg bg-gray-800 rounded-2xl p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                <span>⭐</span> Рекламировать видео
+              </h3>
+              <button onClick={() => setShowPromote(false)} className="text-gray-400 hover:text-white">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div 
+                className="p-4 rounded-xl border-2 border-yellow-500/50 bg-gradient-to-br from-yellow-500/10 to-orange-500/10 cursor-pointer hover:border-yellow-500 transition-all"
+                onClick={() => alert('Пакет "Стартовый" выбран! Функция в разработке.')}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-lg font-bold text-yellow-400">🚀 Стартовый</span>
+                  <span className="text-xl font-bold text-white">99 KC</span>
+                </div>
+                <ul className="text-sm text-gray-300 space-y-1">
+                  <li>• 1000 показов в рекомендациях</li>
+                  <li>• Приоритет на 24 часа</li>
+                  <li>• Значок "Реклама"</li>
+                </ul>
+              </div>
+
+              <div 
+                className="p-4 rounded-xl border-2 border-purple-500/50 bg-gradient-to-br from-purple-500/10 to-pink-500/10 cursor-pointer hover:border-purple-500 transition-all"
+                onClick={() => alert('Пакет "Продвинутый" выбран! Функция в разработке.')}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-lg font-bold text-purple-400">💎 Продвинутый</span>
+                  <span className="text-xl font-bold text-white">299 KC</span>
+                </div>
+                <ul className="text-sm text-gray-300 space-y-1">
+                  <li>• 5000 показов в рекомендациях</li>
+                  <li>• Приоритет на 3 дня</li>
+                  <li>• Показ на главной странице</li>
+                  <li>• Статистика продвижения</li>
+                </ul>
+              </div>
+
+              <div 
+                className="p-4 rounded-xl border-2 border-red-500/50 bg-gradient-to-br from-red-500/10 to-orange-500/10 cursor-pointer hover:border-red-500 transition-all"
+                onClick={() => alert('Пакет "Максимальный" выбран! Функция в разработке.')}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-lg font-bold text-red-400">🔥 Максимальный</span>
+                  <span className="text-xl font-bold text-white">599 KC</span>
+                </div>
+                <ul className="text-sm text-gray-300 space-y-1">
+                  <li>• 15000 показов в рекомендациях</li>
+                  <li>• Приоритет на 7 дней</li>
+                  <li>• Топ главной страницы</li>
+                  <li>• Push-уведомления подписчикам</li>
+                  <li>• Детальная аналитика</li>
+                </ul>
+              </div>
+            </div>
+
+            <p className="text-xs text-gray-500 text-center mt-4">
+              KC — KuzCoins, внутренняя валюта платформы
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {showEdit && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80"
+          onClick={() => setShowEdit(false)}
+        >
+          <div 
+            className="w-full max-w-lg bg-gray-800 rounded-2xl p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                <span>✏️</span> Редактировать видео
+              </h3>
+              <button onClick={() => setShowEdit(false)} className="text-gray-400 hover:text-white">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Название</label>
+                <input
+                  type="text"
+                  value={editData.title}
+                  onChange={(e) => setEditData({ ...editData, title: e.target.value })}
+                  className="w-full px-4 py-3 rounded-xl bg-gray-700 text-white border border-gray-600 focus:border-red-500 focus:outline-none"
+                  placeholder="Введите название видео"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Описание</label>
+                <textarea
+                  value={editData.description}
+                  onChange={(e) => setEditData({ ...editData, description: e.target.value })}
+                  rows={4}
+                  className="w-full px-4 py-3 rounded-xl bg-gray-700 text-white border border-gray-600 focus:border-red-500 focus:outline-none resize-none"
+                  placeholder="Введите описание видео"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">URL превью</label>
+                <input
+                  type="text"
+                  value={editData.thumbnail}
+                  onChange={(e) => setEditData({ ...editData, thumbnail: e.target.value })}
+                  className="w-full px-4 py-3 rounded-xl bg-gray-700 text-white border border-gray-600 focus:border-red-500 focus:outline-none"
+                  placeholder="https://example.com/image.jpg"
+                />
+                {editData.thumbnail && (
+                  <div className="mt-2 aspect-video rounded-xl overflow-hidden bg-gray-700">
+                    <img src={editData.thumbnail} alt="Preview" className="w-full h-full object-cover" />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex gap-3 justify-end mt-6">
+              <button
+                onClick={() => setShowEdit(false)}
+                className="px-5 py-2.5 rounded-full text-white hover:bg-gray-700 transition-colors"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                disabled={isSaving}
+                className="px-5 py-2.5 rounded-full text-white transition-colors disabled:opacity-50"
+                style={{ background: 'linear-gradient(135deg, #ff0000, #cc0000)' }}
+              >
+                {isSaving ? 'Сохранение...' : 'Сохранить'}
               </button>
             </div>
           </div>

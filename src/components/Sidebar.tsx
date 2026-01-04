@@ -386,6 +386,9 @@ export default function Sidebar({ isOpen, onClose, isCollapsible = false }: Side
               {!isCollapsed && (
                 <>
                   <p className="text-xs text-gray-500">© 2024 Эксклюзивный тест</p>
+                  <Link href="/terms" className="text-xs text-gray-500 hover:text-red-400 transition-colors block mt-1">
+                    Соглашение
+                  </Link>
                   {isPremium && (
                     <div className="mt-2 inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs" style={{ background: 'linear-gradient(135deg, #ffd700, #ffaa00)', color: 'black' }}>
                       <span>👑</span> Premium активен

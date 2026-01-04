@@ -103,3 +103,30 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS description TEXT DEFAULT '';
 
 -- Добавляем колонку is_short для Shorts видео
 ALTER TABLE videos ADD COLUMN IF NOT EXISTS is_short BOOLEAN DEFAULT false;
+
+
+-- Таблица сообщений глобального чата
+CREATE TABLE IF NOT EXISTS chat_messages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_name TEXT NOT NULL,
+  user_avatar TEXT DEFAULT '',
+  message TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Включаем RLS для чата
+ALTER TABLE chat_messages ENABLE ROW LEVEL SECURITY;
+
+-- Политики для chat_messages
+CREATE POLICY "Anyone can view chat messages" ON chat_messages
+  FOR SELECT USING (true);
+
+CREATE POLICY "Authenticated users can send messages" ON chat_messages
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own messages" ON chat_messages
+  FOR DELETE USING (auth.uid() = user_id);
+
+-- Индекс для быстрой выборки последних сообщений
+CREATE INDEX IF NOT EXISTS chat_messages_created_at_idx ON chat_messages(created_at DESC);
