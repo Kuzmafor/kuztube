@@ -38,7 +38,7 @@ interface AvatarWithFrameProps {
   avatarUrl?: string | null;
   equippedFrame?: string;
   equippedBadge?: string;
-  size?: 'sm' | 'md' | 'lg' | 'xl';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | 'custom';
   isPremium?: boolean;
   showBadge?: boolean;
   onClick?: () => void;
@@ -49,7 +49,10 @@ const sizeClasses = {
   sm: 'w-8 h-8 text-sm',
   md: 'w-10 h-10 text-base',
   lg: 'w-12 h-12 text-lg',
-  xl: 'w-16 h-16 text-2xl',
+  xl: 'w-24 h-24 text-3xl',
+  '2xl': 'w-32 h-32 text-4xl',
+  '3xl': 'w-40 h-40 text-5xl',
+  custom: '', // Для кастомных размеров через className
 };
 
 const badgeSizes = {
@@ -57,6 +60,9 @@ const badgeSizes = {
   md: 'text-[10px] -right-1 -bottom-1 w-4 h-4',
   lg: 'text-xs -right-1 -bottom-1 w-5 h-5',
   xl: 'text-sm -right-1 -bottom-1 w-6 h-6',
+  '2xl': 'text-base -right-2 -bottom-2 w-8 h-8',
+  '3xl': 'text-lg -right-2 -bottom-2 w-10 h-10',
+  custom: 'text-base -right-2 -bottom-2 w-8 h-8',
 };
 
 export default function AvatarWithFrame({
@@ -93,9 +99,13 @@ export default function AvatarWithFrame({
   }
 
   const Component = onClick ? 'button' : 'div';
+  
+  // Определяем классы размера
+  const sizeClass = size === 'custom' ? '' : sizeClasses[size];
+  const badgeSizeClass = badgeSizes[size] || badgeSizes.xl;
 
   return (
-    <div className={`relative inline-block ${className}`}>
+    <div className={`relative inline-block ${size === 'custom' ? className : ''}`}>
       {/* Радужная рамка - отдельный слой */}
       {equippedFrame === 'frame_rainbow' && (
         <div 
@@ -109,7 +119,7 @@ export default function AvatarWithFrame({
       
       <Component
         onClick={onClick}
-        className={`${sizeClasses[size]} rounded-full flex items-center justify-center font-medium overflow-hidden relative z-10 ${
+        className={`${sizeClass} ${size === 'custom' ? 'w-full h-full' : ''} rounded-full flex items-center justify-center font-medium overflow-hidden relative z-10 ${
           onClick ? 'cursor-pointer hover:opacity-90 transition-opacity' : ''
         }`}
         style={baseStyle}
@@ -117,7 +127,7 @@ export default function AvatarWithFrame({
         {avatarUrl ? (
           <img src={avatarUrl} alt={name} className="w-full h-full object-cover" />
         ) : (
-          <span className="text-white">{name.charAt(0).toUpperCase()}</span>
+          <span className="text-white text-3xl sm:text-4xl">{name.charAt(0).toUpperCase()}</span>
         )}
       </Component>
 
@@ -131,7 +141,7 @@ export default function AvatarWithFrame({
       {/* Значок */}
       {showBadge && badge && (
         <div 
-          className={`absolute z-20 ${badgeSizes[size]} w-4 h-4 rounded-full flex items-center justify-center font-bold`}
+          className={`absolute z-20 ${badgeSizeClass} rounded-full flex items-center justify-center font-bold`}
           style={{ 
             background: badge.color,
             color: 'white',

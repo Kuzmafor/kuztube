@@ -39,7 +39,6 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
-  const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -47,20 +46,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const initAuth = async () => {
       try {
         // Получаем текущую сессию
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        console.log('Init auth - session:', session?.user?.email, 'error:', error);
         
         if (mounted) {
           if (session?.user) {
             await setUserFromSession(session);
           }
           setLoading(false);
-          setInitialized(true);
         }
       } catch (error) {
         console.error('Auth init error:', error);
         if (mounted) {
           setLoading(false);
-          setInitialized(true);
         }
       }
     };
@@ -69,7 +68,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     // Слушаем изменения авторизации
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      async (event, session) => {
+        console.log('Auth state change:', event, session?.user?.email);
+        
         if (!mounted) return;
         
         if (session?.user) {
@@ -77,10 +78,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         } else {
           setUser(null);
         }
-        
-        if (initialized) {
-          setLoading(false);
-        }
+        setLoading(false);
       }
     );
 
@@ -88,7 +86,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [initialized]);
+  }, []);
 
   const setUserFromSession = async (session: Session) => {
     const { user: supaUser } = session;
