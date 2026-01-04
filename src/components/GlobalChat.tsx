@@ -199,8 +199,8 @@ export default function GlobalChat() {
         <div 
           className="fixed bottom-20 right-4 z-50 w-80 rounded-2xl overflow-hidden shadow-2xl"
           style={{ 
-            backgroundColor: 'var(--background-primary)',
-            border: '1px solid rgba(255,255,255,0.1)',
+            backgroundColor: '#0f0f0f',
+            border: '1px solid rgba(255,255,255,0.15)',
             height: '500px'
           }}
         >
@@ -244,7 +244,7 @@ export default function GlobalChat() {
           {/* Сообщения */}
           <div 
             className="overflow-y-auto p-3 space-y-3"
-            style={{ height: showRules ? '280px' : '350px' }}
+            style={{ height: showRules ? '280px' : '350px', backgroundColor: '#0f0f0f' }}
           >
             {messages.length === 0 ? (
               <div className="text-center text-gray-500 py-10">
@@ -292,7 +292,7 @@ export default function GlobalChat() {
           </div>
 
           {/* Форма отправки */}
-          <div className="p-3" style={{ borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+          <div className="p-3" style={{ borderTop: '1px solid rgba(255,255,255,0.1)', backgroundColor: '#0f0f0f' }}>
             {user ? (
               <form onSubmit={sendMessage} className="flex gap-2">
                 <input
@@ -303,8 +303,8 @@ export default function GlobalChat() {
                   maxLength={200}
                   className="flex-1 px-3 py-2 rounded-xl text-sm outline-none"
                   style={{ 
-                    backgroundColor: 'var(--background-secondary)',
-                    color: 'var(--text-primary)'
+                    backgroundColor: '#1a1a1a',
+                    color: '#ffffff'
                   }}
                 />
                 <button
