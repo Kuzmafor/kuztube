@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import VideoCard from '@/components/VideoCard';
@@ -28,9 +28,7 @@ const categories = [
   { icon: '🍳', label: 'Кулинария', query: 'Кулинария' },
 ];
 
-
-
-export default function Home() {
+function HomeContent() {
   const [videos, setVideos] = useState<Video[]>([]);
   const [filteredVideos, setFilteredVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
@@ -335,5 +333,47 @@ export default function Home() {
         )}
       </div>
     </div>
+  );
+}
+
+// Loading fallback
+function HomeLoading() {
+  return (
+    <div className="min-h-screen px-4 py-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+        {[...Array(10)].map((_, i) => (
+          <div key={i} className="animate-pulse">
+            <div 
+              className="aspect-video rounded-xl mb-3"
+              style={{ backgroundColor: 'var(--background-secondary)' }}
+            />
+            <div className="flex gap-3">
+              <div 
+                className="w-9 h-9 rounded-full"
+                style={{ backgroundColor: 'var(--background-secondary)' }}
+              />
+              <div className="flex-1">
+                <div 
+                  className="h-4 rounded mb-2"
+                  style={{ backgroundColor: 'var(--background-secondary)' }}
+                />
+                <div 
+                  className="h-3 rounded w-2/3"
+                  style={{ backgroundColor: 'var(--background-secondary)' }}
+                />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={<HomeLoading />}>
+      <HomeContent />
+    </Suspense>
   );
 }
