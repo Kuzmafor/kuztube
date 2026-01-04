@@ -3,6 +3,15 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
+// Очищаем старые ключи авторизации при загрузке
+if (typeof window !== 'undefined') {
+  // Удаляем старый кастомный ключ, который конфликтует
+  const oldKey = 'sb-kuztube-auth-token';
+  if (localStorage.getItem(oldKey)) {
+    localStorage.removeItem(oldKey);
+  }
+}
+
 let supabaseInstance: SupabaseClient | null = null;
 
 function getSupabaseClient(): SupabaseClient {
@@ -10,45 +19,14 @@ function getSupabaseClient(): SupabaseClient {
     return supabaseInstance;
   }
 
-  const isBrowser = typeof window !== 'undefined';
-  
   supabaseInstance = createClient(
     supabaseUrl || 'https://placeholder.supabase.co',
     supabaseAnonKey || 'placeholder-key',
     {
       auth: {
-        persistSession: isBrowser,
+        persistSession: true,
         autoRefreshToken: true,
-        detectSessionInUrl: isBrowser,
-        storage: isBrowser ? {
-          getItem: (key) => {
-            try {
-              return window.localStorage.getItem(key);
-            } catch {
-              return null;
-            }
-          },
-          setItem: (key, value) => {
-            try {
-              window.localStorage.setItem(key, value);
-            } catch {
-              // ignore
-            }
-          },
-          removeItem: (key) => {
-            try {
-              window.localStorage.removeItem(key);
-            } catch {
-              // ignore
-            }
-          },
-        } : undefined,
-        storageKey: 'sb-kuztube-auth-token',
-      },
-      realtime: {
-        params: {
-          eventsPerSecond: 2,
-        },
+        detectSessionInUrl: true,
       },
     }
   );
